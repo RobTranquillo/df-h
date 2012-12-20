@@ -28,28 +28,61 @@ Max WP Version: *
 
  class show_dfh { 	
 	public $adminToolBar;
-	private $setting;
+	private $active_setting;
+	private $cycle_setting;
+	private $lastrun_setting;
+	private $last_dfh;
 	private $dfhOutputString;
 	
 	function __construct()
 	{
 		if( $_POST['df-h-activate-setting'] == 'sidebar' || $_POST['df-h-activate-setting'] == 'button' ) 
 				update_option('df-h-activate-setting', $_POST['df-h-activate-setting'] );											
-		$this->setting = get_option('df-h-activate-setting');
+		$this->active_setting = get_option('df-h-activate-setting');
+
+		if( $_POST['df-h-cycle-setting'] ) 
+		{			
+			if(	$_POST['df-h-cycle-setting'] > 1000 || $_POST['df-h-cycle-setting'] < 0)  //verify $post is a real number
+				$_POST['df-h-cycle-setting'] = 1; 
+			update_option('df-h-cycle-setting', $_POST['df-h-cycle-setting'] );				
+		}
+		$this->cycle_setting = get_option('df-h-cycle-setting');
+		if( $this->cycle_setting == false ) $this->cycle_setting = 1;
+
+		$this->lastrun_setting = get_option('df-h-lastrun-setting');		
 		
 		$this->adminToolBar = 'df-h';
-		if( $this->setting == 'sidebar' ) 	$this->callTheServer();		
+		if( $this->active_setting == 'sidebar' ) {
+			$this->get_dfh();
+			update_option('dfh_buffer_toolbar',	 $this->adminToolBar );
+			update_option('dfh_buffer_complete', $this->completeResult );
+		}
 		if( $_POST['get_df-h'] != '' ) 	{	$this->callTheServer();
 											$this->dfhOutputString = '<h3>'.$this->adminToolBar.'</h3>'; 
 		}
 	}
 	
+	function get_dfh()
+	{
+		//if last run is long enough in the past
+		if( $this->lastrun_setting + $this->cycle_setting*60 < time() )
+		{
+			$this->callTheServer();
+			update_option( 'df-h-lastrun-setting', time() );
+		}
+		else
+		{
+			if( get_option('dfh_buffer_toolbar') ) $this->adminToolBar = get_option('dfh_buffer_toolbar');
+			$this->completeResult = get_option('dfh_buffer_complete');
+		}
+	}
+	
 	function plugin_page()
 	{
-		if( $this->setting == 'sidebar' ) 
+		if( $this->active_setting == 'sidebar' ) 
 		{
-			$checked['sidebar'] = ' checked ';
-			$this->adminToolBar = $this->callTheServer();		
+			$checked['sidebar'] = ' checked ';	
+			$cycle_input = "<li><input type=text value='$this->cycle_setting' maxlength=3 size=3 name='df-h-cycle-setting'> Minutes to update the measurement (0 = at every admin-pageload)</li>";
 		}
 		else 
 		{
@@ -70,12 +103,15 @@ Max WP Version: *
 		<form method=post >
 		<ul>
 			<li><input type=radio name='df-h-activate-setting' value='sidebar' $checked[sidebar]> show df-h in admin-tools-sidebar										</li>
-			<li><input type=radio name='df-h-activate-setting' value='button'  $checked[button]> only show df-h after defined request (you will get an button for it)	</li>
-			<li><input type=submit value='save setting'>	</li>
+			$cycle_input
+			<li><input type=radio name='df-h-activate-setting' value='button'  $checked[button]> only show df-h after defined request (you will get an button for it)	</li>			
+			<li><input type=submit value='save setting'></li>
 			$button
 		</form>		
 		<br><br>".		
 		$this->completeResult;
+		
+		echo '<br><br> Last run on console: ' . date('d-m-Y h:i:s', $this->lastrun_setting);
 	}
 
 	function callTheServer()
@@ -94,6 +130,8 @@ Max WP Version: *
 			<li>	Free Drive Space: $dfh[2]		</li>
 			<li>	Free Drive Space: $dfh[3]		</li>
 		</ul>";
+		
+		sleep(5);
 	}
 	
  }//class end
