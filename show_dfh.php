@@ -130,8 +130,6 @@ Max WP Version: *
 			<li>	Free Drive Space: $dfh[2]		</li>
 			<li>	Free Drive Space: $dfh[3]		</li>
 		</ul>";
-		
-		sleep(5);
 	}
 	
  }//class end
